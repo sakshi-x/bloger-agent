@@ -8,3 +8,5 @@ __pycache__/
 .Python
 *.log
 .DS_Store
+credentials.json
+client_secret*.json

@@ -6,7 +6,7 @@ Automatically writes and publishes blog posts to Google Blogger using AI. Runs d
 
 - ✅ Generates 800-1200 word blog posts using Groq (Llama 3.3 70B)
 - ✅ Searches web for latest info using Serper API
-- ✅ Adds relevant free images from Pixabay
+- ✅ Adds relevant free images from Pixabay (optional)
 - ✅ Publishes directly to Blogger as live posts
 - ✅ Tracks used topics (no duplicates)
 - ✅ Runs automatically daily + manual trigger
@@ -25,7 +25,7 @@ cd blogger-agent
 
 ### 2. Get All API Keys
 
-You need **7 API keys/secrets**. Follow each section below.
+You need **6 required API keys/secrets** + **1 optional** (Pixabay). Follow each section below.
 
 ---
 
@@ -49,11 +49,13 @@ You need **7 API keys/secrets**. Follow each section below.
 
 ---
 
-### 🔑 3. Pixabay API Key (Images)
+### 🔑 3. Pixabay API Key (Images - Optional)
 
 1. Go to [pixabay.com/api/docs](https://pixabay.com/api/docs/)
 2. Create account → Get API key
 3. Save as `PIXABAY_API_KEY`
+
+**Note:** This is optional. If not provided, blog posts will be published without images.
 
 ---
 
@@ -108,17 +110,17 @@ python get_refresh_token.py
 
 1. Go to your repo on GitHub
 2. Settings → Secrets and variables → Actions → **New repository secret**
-3. Add all 7 secrets:
+3. Add all **6 required** secrets + **1 optional**:
 
-| Secret Name | Value |
-|-------------|-------|
-| `GROQ_API_KEY` | From Groq console |
-| `SEARCH_API_KEY` | From Serper dashboard |
-| `PIXABAY_API_KEY` | From Pixabay |
-| `BLOGGER_BLOG_ID` | Number from Blogger URL |
-| `GOOGLE_CLIENT_ID` | From OAuth credentials |
-| `GOOGLE_CLIENT_SECRET` | From OAuth credentials |
-| `GOOGLE_REFRESH_TOKEN` | From `get_refresh_token.py` |
+| Secret Name | Required? | Value |
+|-------------|-----------|-------|
+| `GROQ_API_KEY` | Yes | From Groq console |
+| `SEARCH_API_KEY` | Yes | From Serper dashboard |
+| `PIXABAY_API_KEY` | **No (optional)** | From Pixabay |
+| `BLOGGER_BLOG_ID` | Yes | Number from Blogger URL |
+| `GOOGLE_CLIENT_ID` | Yes | From OAuth credentials |
+| `GOOGLE_CLIENT_SECRET` | Yes | From OAuth credentials |
+| `GOOGLE_REFRESH_TOKEN` | Yes | From `get_refresh_token.py` |
 
 ---
 
@@ -257,7 +259,7 @@ Check all 7 secrets are added in GitHub Settings → Secrets.
 - Ensure refresh token hasn't expired (re-run `get_refresh_token.py`)
 
 ### "Pixabay: No images found"
-Try broader topics in `topics.txt` or check Pixabay API key.
+Try broader topics in `topics.txt` or check Pixabay API key. **This is optional** - posts will publish without images if Pixabay fails.
 
 ### "Groq: Rate limited"
 Free tier has limits. Wait or upgrade at console.groq.com.
@@ -299,6 +301,6 @@ MIT License - Feel free to use and modify!
 
 If something breaks:
 1. Check Actions logs for error details
-2. Verify all 7 secrets are set
+2. Verify all 6 required secrets are set (Pixabay is optional)
 3. Re-run `get_refresh_token.py` if Google auth fails
 4. Open an issue on GitHub

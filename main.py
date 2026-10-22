@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 """
 Blogger Agent - Automatically writes and publishes blog posts to Google Blogger.
-Uses Groq API for content generation, Serper for search, Pixabay for images,
+Uses Groq API for content generation, Serper for search, Pixabay for images (optional),
 and Google Blogger API v3 for publishing.
 
 Environment variables required (set as GitHub Actions Secrets):
 - GROQ_API_KEY
 - SEARCH_API_KEY
-- PIXABAY_API_KEY
 - BLOGGER_BLOG_ID
 - GOOGLE_CLIENT_ID
 - GOOGLE_CLIENT_SECRET
 - GOOGLE_REFRESH_TOKEN
+
+Environment variables optional:
+- PIXABAY_API_KEY (if not set, posts publish without images)
 """
 
 import os
@@ -63,6 +65,11 @@ def get_env_var(name: str) -> str:
         logger.error(f"Missing required environment variable: {name}")
         sys.exit(1)
     return value
+
+
+def get_optional_env_var(name: str) -> Optional[str]:
+    """Get environment variable or return None if not set."""
+    return os.getenv(name)
 
 
 def retry_request(func, *args, **kwargs):
@@ -226,14 +233,19 @@ def generate_blog_post(topic: str, search_results: List[Dict[str, Any]]) -> Dict
 
 
 # ============================
-# Pixabay API - Image Fetching
+# Pixabay API - Image Fetching (Optional)
 # ============================
-def fetch_pixabay_image(topic: str) -> Dict[str, str]:
+def fetch_pixabay_image(topic: str) -> Optional[Dict[str, str]]:
     """
     Fetch a relevant free image from Pixabay.
     Returns dict with: image_url, alt_text, credit_line
+    Returns None if PIXABAY_API_KEY is not set or request fails.
     """
-    api_key = get_env_var("PIXABAY_API_KEY")
+    api_key = get_optional_env_var("PIXABAY_API_KEY")
+    if not api_key:
+        logger.info("PIXABAY_API_KEY not set, skipping image fetch")
+        return None
+
     url = "https://pixabay.com/api/"
     params = {
         "key": api_key,
@@ -262,7 +274,11 @@ def fetch_pixabay_image(topic: str) -> Dict[str, str]:
         logger.info(f"Selected Pixabay image: {image_url}")
         return {"image_url": image_url, "alt_text": alt_text, "credit": credit}
 
-    return retry_request(_fetch)
+    try:
+        return retry_request(_fetch)
+    except SystemExit:
+        logger.warning("Pixabay image fetch failed, continuing without image")
+        return None
 
 
 # ============================
@@ -286,7 +302,7 @@ def get_blogger_service():
     return service
 
 
-def publish_to_blogger(title: str, html_content: str, labels: List[str], image_info: Dict[str, str]) -> str:
+def publish_to_blogger(title: str, html_content: str, labels: List[str], image_info: Optional[Dict[str, str]] = None) -> str:
     """
     Publish the blog post to Blogger as a live post.
     Returns the post URL.
@@ -294,15 +310,18 @@ def publish_to_blogger(title: str, html_content: str, labels: List[str], image_i
     blog_id = get_env_var("BLOGGER_BLOG_ID")
     service = get_blogger_service()
 
-    # Prepend image to content
-    image_html = (
-        f'<div style="text-align: center; margin-bottom: 20px;">'
-        f'<img src="{image_info["image_url"]}" alt="{image_info["alt_text"]}" '
-        f'style="max-width: 100%; height: auto; border-radius: 8px;">'
-        f'<br><small><em>{image_info["credit"]}</em></small>'
-        f'</div>'
-    )
-    full_content = image_html + html_content
+    # Prepend image to content if available
+    if image_info:
+        image_html = (
+            f'<div style="text-align: center; margin-bottom: 20px;">'
+            f'<img src="{image_info["image_url"]}" alt="{image_info["alt_text"]}" '
+            f'style="max-width: 100%; height: auto; border-radius: 8px;">'
+            f'<br><small><em>{image_info["credit"]}</em></small>'
+            f'</div>'
+        )
+        full_content = image_html + html_content
+    else:
+        full_content = html_content
 
     post_body = {
         "kind": "blogger#post",
@@ -342,9 +361,13 @@ def main():
     logger.info("Generating blog post with Groq...")
     post_data = generate_blog_post(topic, search_results)
 
-    # Step 4: Fetch image from Pixabay
+    # Step 4: Fetch image from Pixabay (optional)
     logger.info("Fetching image from Pixabay...")
     image_info = fetch_pixabay_image(topic)
+    if image_info:
+        logger.info("Pixabay image fetched successfully")
+    else:
+        logger.info("No image fetched, publishing without image")
 
     # Step 5: Publish to Blogger
     logger.info("Publishing to Blogger...")
